@@ -15,6 +15,42 @@ const TRUSTED_PACKAGES = new Set([
   "com.android.packageinstaller"
 ]);
 
+const KNOWN_APP_PROFILES = {
+  "com.nexse.mobile.bos.eurobet": {
+    name: "Eurobet",
+    category: "scommesse",
+    trust: "app nota/riconoscibile",
+    cap: 76,
+    notes: [
+      "App riconosciuta come scommesse: categoria sensibile per privacy, pagamenti, identita e posizione.",
+      "Il rischio principale non e malware evidente, ma dati sensibili e uso responsabile dell'account."
+    ]
+  },
+  "host.exp.exponent": {
+    name: "Expo Go",
+    category: "sviluppo",
+    trust: "contenitore sviluppo",
+    cap: 62,
+    notes: [
+      "Expo Go e un contenitore di sviluppo: molti domini, moduli e permessi tecnici possono essere normali.",
+      "Da valutare soprattutto origine installazione e firma, non il numero grezzo di componenti."
+    ]
+  }
+};
+
+const SENSITIVE_CATEGORY_WORDS = [
+  "scommesse",
+  "betting",
+  "casino",
+  "prestiti",
+  "loan",
+  "credito",
+  "crypto",
+  "finanza",
+  "vpn",
+  "antivirus"
+];
+
 function sendJson(res, status, body) {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
@@ -58,33 +94,64 @@ function localReputation(input) {
   const trackers = Array.isArray(input.trackers) ? input.trackers : [];
   const protectSignals = Array.isArray(input.protectSignals) ? input.protectSignals : [];
   const packageName = String(input.packageName || "");
+  const appLabel = String(input.appLabel || "");
+  const category = String(input.category || input.localCategory || "");
+  const knownProfile = KNOWN_APP_PROFILES[packageName] || null;
 
   let score = Number(input.localScore || 0);
   const notes = [];
+  const riskFactors = [];
+  const trustFactors = [];
 
   if (TRUSTED_PACKAGES.has(packageName)) {
     score = Math.min(score, 25);
     notes.push("Package Google/Android attendibile: rischio locale limitato.");
+    trustFactors.push("package di piattaforma attendibile");
+  }
+  if (knownProfile) {
+    score = Math.min(score, knownProfile.cap);
+    notes.push(...knownProfile.notes);
+    trustFactors.push(knownProfile.trust);
+  }
+  if (isSensitiveCategory(packageName, appLabel, category)) {
+    score += 6;
+    riskFactors.push("categoria sensibile");
+    notes.push("Categoria sensibile: controlla licenza, sviluppatore, pagamenti e dati richiesti.");
   }
   if (domains.some(d => d.endsWith(".top") || d.endsWith(".xyz") || d.endsWith(".ru"))) {
     score += 8;
     notes.push("Dominio con TLD da verificare.");
+    riskFactors.push("domini con TLD deboli");
   }
   if (domains.length > 5) {
-    score += 5;
+    score += knownProfile ? 2 : 5;
     notes.push("Molti domini leggibili nell'APK.");
+    riskFactors.push("molti domini leggibili");
   }
   if (trackers.length > 3) {
     score += 8;
     notes.push("Diversi SDK tracker rilevati.");
+    riskFactors.push("molti SDK tracker");
+  } else if (trackers.length > 0) {
+    riskFactors.push("SDK analytics/tracker presenti");
   }
   if (protectSignals.length > 0) {
-    score += 10;
-    notes.push("Segnali tecnici locali da verificare.");
+    const strongProtect = protectSignals.some(signal => /sms|admin|accessibil|overlay|runtime|exec/i.test(String(signal)));
+    score += strongProtect ? 14 : 6;
+    notes.push(strongProtect ? "Segnali tecnici forti da verificare." : "Segnali tecnici locali presenti, da pesare con contesto e categoria.");
+    riskFactors.push(strongProtect ? "segnali tecnici forti" : "segnali tecnici deboli");
+  }
+  if (knownProfile) {
+    score = Math.min(score, knownProfile.cap);
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
-  return { score, notes, domains };
+  return { score, notes, domains, riskFactors, trustFactors, knownProfile, category };
+}
+
+function isSensitiveCategory(packageName, appLabel, category) {
+  const haystack = `${packageName || ""} ${appLabel || ""} ${category || ""}`.toLowerCase();
+  return SENSITIVE_CATEGORY_WORDS.some(word => haystack.includes(word));
 }
 
 async function checkVirusTotalDomain(domain) {
@@ -128,6 +195,33 @@ function verdictFor(score) {
   if (score < 35) return "rischio basso";
   if (score < 68) return "rischio medio";
   return "rischio alto";
+}
+
+function recommendationFor(score, reputation) {
+  if (score < 35) {
+    return "OK con controllo finale di sviluppatore, recensioni recenti e permessi.";
+  }
+  if (score < 68) {
+    return "Usa solo se serve davvero; limita permessi non indispensabili e controlla policy privacy.";
+  }
+  if (reputation.knownProfile) {
+    return "Categoria sensibile: non emerge malware evidente dal controllo online base, ma usa solo canale ufficiale e limita dati/permessi.";
+  }
+  return "Evita o cerca alternativa piu nota finche reputazione e permessi non sono chiariti.";
+}
+
+function summaryFor(input, score, reputation) {
+  const label = String(input.appLabel || input.packageName || "App");
+  if (reputation.knownProfile) {
+    return `${label}: app riconosciuta come ${reputation.knownProfile.category}. Rischio ${verdictFor(score)} per categoria e permessi, non per prova automatica di malware.`;
+  }
+  if (reputation.trustFactors.length > 0) {
+    return `${label}: segnali di affidabilita trovati. Rischio ${verdictFor(score)}.`;
+  }
+  if (reputation.riskFactors.length > 0) {
+    return `${label}: trovati ${reputation.riskFactors.slice(0, 3).join(", ")}. Rischio ${verdictFor(score)}.`;
+  }
+  return `${label}: nessun segnale online forte nel controllo base. Rischio ${verdictFor(score)}.`;
 }
 
 async function handleOnlineCheck(req, res) {
@@ -182,6 +276,12 @@ async function handleOnlineCheck(req, res) {
     provider: providers.join(", "),
     verdict: verdictFor(score),
     score,
+    summary: summaryFor(input, score, reputation),
+    recommendation: recommendationFor(score, reputation),
+    riskFactors: reputation.riskFactors,
+    trustFactors: reputation.trustFactors,
+    category: reputation.knownProfile ? reputation.knownProfile.category : reputation.category,
+    confidence: vtResults.length > 0 || SAFE_BROWSING_API_KEY ? "alta" : "media",
     notes: notes.length ? notes.join(" ") : "Nessun segnale online forte.",
     checkedAt: new Date().toISOString()
   });
