@@ -1,0 +1,13 @@
+{
+  "name": "privacy-radar-online-pro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Privacy Radar Online Pro proxy server",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "check": "node --check index.js"
+  }
+}
