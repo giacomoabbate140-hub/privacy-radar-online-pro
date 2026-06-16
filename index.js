@@ -51,7 +51,7 @@ const CATEGORY_PROFILES = [
   },
   {
     category: "prestiti/finanza",
-    match: ["prestito", "prestiti", "loan", "credito", "finance", "wallet", "bank", "trading"],
+    match: ["prestito", "prestiti", "loan", "credito", "finance", "bank", "trading"],
     cap: 82,
     trust: "categoria riconosciuta: finanza/prestiti",
     notes: [
