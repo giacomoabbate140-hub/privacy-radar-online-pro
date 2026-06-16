@@ -20,10 +20,10 @@ const KNOWN_APP_PROFILES = {
     name: "Eurobet",
     category: "scommesse",
     trust: "app nota/riconoscibile",
-    cap: 76,
+    cap: 66,
     notes: [
       "App riconosciuta come scommesse: categoria sensibile per privacy, pagamenti, identita e posizione.",
-      "Il rischio principale non e malware evidente, ma dati sensibili e uso responsabile dell'account."
+      "Non e marcata come rischio alto solo per categoria: il rischio cresce con permessi fuori contesto o segnali tecnici forti."
     ]
   },
   "host.exp.exponent": {
@@ -62,10 +62,10 @@ const CATEGORY_PROFILES = [
   {
     category: "scommesse",
     match: ["scommess", "betting", "casino", "eurobet", "goldbet", "snai", "sisal", "bet365", "poker", "bingo"],
-    cap: 78,
+    cap: 68,
     trust: "categoria riconosciuta: scommesse/casino",
     notes: [
-      "App scommesse/casino: rischio privacy alto per pagamenti, identita, posizione e uso account.",
+      "App scommesse/casino: categoria sensibile per pagamenti, identita, posizione e uso account.",
       "Non va marcata come malware senza segnali forti: va distinta la categoria sensibile dalla pericolosita tecnica."
     ]
   },
