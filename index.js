@@ -207,6 +207,16 @@ function resolveAppProfile(packageName, appLabel, category) {
     return KNOWN_APP_PROFILES[packageName];
   }
   const haystack = `${packageName || ""} ${appLabel || ""} ${category || ""}`.toLowerCase();
+  if (["crypto", "bitcoin", "wallet", "token", "exchange", "defi"].some(word => haystack.includes(word))) {
+    const cryptoProfile = CATEGORY_PROFILES.find(profile => profile.category === "crypto");
+    return {
+      name: appLabel || packageName,
+      category: cryptoProfile.category,
+      trust: cryptoProfile.trust,
+      cap: cryptoProfile.cap,
+      notes: cryptoProfile.notes
+    };
+  }
   for (const profile of CATEGORY_PROFILES) {
     if (profile.match.some(word => haystack.includes(word))) {
       return {
