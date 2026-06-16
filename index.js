@@ -213,15 +213,15 @@ function recommendationFor(score, reputation) {
 function summaryFor(input, score, reputation) {
   const label = String(input.appLabel || input.packageName || "App");
   if (reputation.knownProfile) {
-    return `${label}: app riconosciuta come ${reputation.knownProfile.category}. Rischio ${verdictFor(score)} per categoria e permessi, non per prova automatica di malware.`;
+    return `${label}: app riconosciuta come ${reputation.knownProfile.category}. Livello ${verdictFor(score)} per categoria e permessi, non per prova automatica di malware.`;
   }
   if (reputation.trustFactors.length > 0) {
-    return `${label}: segnali di affidabilita trovati. Rischio ${verdictFor(score)}.`;
+    return `${label}: segnali di affidabilita trovati. Livello ${verdictFor(score)}.`;
   }
   if (reputation.riskFactors.length > 0) {
-    return `${label}: trovati ${reputation.riskFactors.slice(0, 3).join(", ")}. Rischio ${verdictFor(score)}.`;
+    return `${label}: trovati ${reputation.riskFactors.slice(0, 3).join(", ")}. Livello ${verdictFor(score)}.`;
   }
-  return `${label}: nessun segnale online forte nel controllo base. Rischio ${verdictFor(score)}.`;
+  return `${label}: nessun segnale online forte nel controllo base. Livello ${verdictFor(score)}.`;
 }
 
 async function handleOnlineCheck(req, res) {
