@@ -40,6 +40,16 @@ const KNOWN_APP_PROFILES = {
 
 const CATEGORY_PROFILES = [
   {
+    category: "parcheggio/mobilita",
+    match: ["easypark", "isypark", "parking", "parcheggio", "sosta", "mobility", "mobilita", "telepass", "mooneygo", "mycicero", "paybyphone", "trasport"],
+    cap: 58,
+    trust: "categoria riconosciuta: parcheggio/mobilita",
+    notes: [
+      "App parcheggio/mobilita: posizione, rete, notifiche e pagamenti sono spesso coerenti con la funzione.",
+      "Il rischio diventa alto solo se compaiono permessi fuori contesto come accessibilita, SMS, installazione esterna o device admin."
+    ]
+  },
+  {
     category: "scommesse",
     match: ["scommess", "betting", "casino", "eurobet", "goldbet", "snai", "sisal", "bet365", "poker", "bingo"],
     cap: 78,
