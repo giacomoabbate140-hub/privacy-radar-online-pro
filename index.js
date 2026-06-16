@@ -170,6 +170,7 @@ function localReputation(input) {
   const appLabel = String(input.appLabel || "");
   const category = String(input.category || input.localCategory || "");
   const knownProfile = resolveAppProfile(packageName, appLabel, category);
+  const suspiciousBrandUse = isSuspiciousBrandUse(packageName, appLabel, domains);
 
   let score = Number(input.localScore || 0);
   const notes = [];
@@ -182,9 +183,14 @@ function localReputation(input) {
     trustFactors.push("package di piattaforma attendibile");
   }
   if (knownProfile) {
-    score = Math.min(score, knownProfile.cap);
+    score = Math.min(score, suspiciousBrandUse ? Math.max(knownProfile.cap, 86) : knownProfile.cap);
     notes.push(...knownProfile.notes);
-    trustFactors.push(knownProfile.trust);
+    if (suspiciousBrandUse) {
+      notes.push("Nome o package usa un marchio sensibile ma con segnali non ufficiali: possibile clone/phishing da verificare.");
+      riskFactors.push("marchio sensibile non coerente");
+    } else {
+      trustFactors.push(knownProfile.trust);
+    }
   }
   if (isSensitiveCategory(packageName, appLabel, category)) {
     score += 6;
@@ -215,11 +221,21 @@ function localReputation(input) {
     riskFactors.push(strongProtect ? "segnali tecnici forti" : "segnali tecnici deboli");
   }
   if (knownProfile) {
-    score = Math.min(score, knownProfile.cap);
+    score = Math.min(score, suspiciousBrandUse ? 92 : knownProfile.cap);
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
   return { score, notes, domains, riskFactors, trustFactors, knownProfile, category };
+}
+
+function isSuspiciousBrandUse(packageName, appLabel, domains) {
+  const haystack = `${packageName || ""} ${appLabel || ""}`.toLowerCase();
+  const brandLike = /poste|postepay|bancoposta|spid|inps|agenziaentrate|paypal|nexi|satispay/.test(haystack);
+  if (!brandLike) return false;
+  const officialPackage = /^(posteitaliane\.|it\.poste|it\.posteitaliane|it\.ipzs|it\.pagopa|it\.inps|it\.agenziaentrate|com\.paypal|it\.nexi|com\.satispay)/.test(packageName || "");
+  const weakDomain = domains.some(d => d.endsWith(".top") || d.endsWith(".xyz") || d.endsWith(".ru"));
+  const lureWords = /bonus|gratis|free|apk|mod|credito|premio|gift|win/.test(haystack);
+  return !officialPackage || weakDomain || lureWords;
 }
 
 function resolveAppProfile(packageName, appLabel, category) {
