@@ -311,7 +311,7 @@ async function checkSafeBrowsing(domains) {
 
 function verdictFor(score) {
   if (score < 35) return "rischio basso";
-  if (score < 68) return "rischio medio";
+  if (score < 70) return "rischio medio";
   return "rischio alto";
 }
 
@@ -319,7 +319,7 @@ function recommendationFor(score, reputation) {
   if (score < 35) {
     return "OK con controllo finale di sviluppatore, recensioni recenti e permessi.";
   }
-  if (score < 68) {
+  if (score < 70) {
     return "Usa solo se serve davvero; limita permessi non indispensabili e controlla policy privacy.";
   }
   if (reputation.knownProfile) {
@@ -330,7 +330,7 @@ function recommendationFor(score, reputation) {
 
 function decisionFor(score, reputation) {
   if (score < 35) return "consigliata";
-  if (score < 68) return "attenzione";
+  if (score < 70) return "attenzione";
   if (reputation.knownProfile) return "attenzione alta";
   return "evita";
 }
