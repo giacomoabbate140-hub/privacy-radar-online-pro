@@ -62,7 +62,7 @@ const CATEGORY_PROFILES = [
   {
     category: "scommesse",
     match: ["scommess", "betting", "casino", "eurobet", "goldbet", "snai", "sisal", "bet365", "poker", "bingo"],
-    cap: 68,
+    cap: 67,
     trust: "categoria riconosciuta: scommesse/casino",
     notes: [
       "App scommesse/casino: categoria sensibile per pagamenti, identita, posizione e uso account.",
