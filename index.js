@@ -38,6 +38,59 @@ const KNOWN_APP_PROFILES = {
   }
 };
 
+const CATEGORY_PROFILES = [
+  {
+    category: "scommesse",
+    match: ["scommess", "betting", "casino", "eurobet", "goldbet", "snai", "sisal", "bet365", "poker", "bingo"],
+    cap: 78,
+    trust: "categoria riconosciuta: scommesse/casino",
+    notes: [
+      "App scommesse/casino: rischio privacy alto per pagamenti, identita, posizione e uso account.",
+      "Non va marcata come malware senza segnali forti: va distinta la categoria sensibile dalla pericolosita tecnica."
+    ]
+  },
+  {
+    category: "prestiti/finanza",
+    match: ["prestito", "prestiti", "loan", "credito", "finance", "wallet", "bank", "trading"],
+    cap: 82,
+    trust: "categoria riconosciuta: finanza/prestiti",
+    notes: [
+      "App finanziaria/prestiti: controlla societa, licenza, contatti ufficiali e richiesta di SMS/contatti/documenti.",
+      "Il rischio cresce molto se combina SMS, contatti, accessibilita o installazione esterna."
+    ]
+  },
+  {
+    category: "crypto",
+    match: ["crypto", "bitcoin", "wallet", "token", "exchange", "defi"],
+    cap: 84,
+    trust: "categoria riconosciuta: crypto",
+    notes: [
+      "App crypto: categoria ad alto impatto economico, verificare sviluppatore, dominio ufficiale e recensioni recenti.",
+      "Diffida di APK esterni, promesse di guadagno e permessi non coerenti."
+    ]
+  },
+  {
+    category: "vpn/sicurezza",
+    match: ["vpn", "antivirus", "security", "cleaner", "booster"],
+    cap: 80,
+    trust: "categoria riconosciuta: VPN/sicurezza",
+    notes: [
+      "App VPN/sicurezza: puo vedere o filtrare molto traffico, quindi serve fiducia elevata nello sviluppatore.",
+      "Permessi di accessibilita, overlay o uso in background richiedono una spiegazione molto chiara."
+    ]
+  },
+  {
+    category: "sviluppo",
+    match: ["expo", "developer", "debug", "testflight", "devtools"],
+    cap: 62,
+    trust: "categoria riconosciuta: sviluppo/test",
+    notes: [
+      "App di sviluppo/test: molti moduli, domini e componenti tecnici possono essere normali.",
+      "Il giudizio deve pesare origine installazione e firma piu del numero grezzo di componenti."
+    ]
+  }
+];
+
 const SENSITIVE_CATEGORY_WORDS = [
   "scommesse",
   "betting",
@@ -96,7 +149,7 @@ function localReputation(input) {
   const packageName = String(input.packageName || "");
   const appLabel = String(input.appLabel || "");
   const category = String(input.category || input.localCategory || "");
-  const knownProfile = KNOWN_APP_PROFILES[packageName] || null;
+  const knownProfile = resolveAppProfile(packageName, appLabel, category);
 
   let score = Number(input.localScore || 0);
   const notes = [];
@@ -147,6 +200,25 @@ function localReputation(input) {
 
   score = Math.max(0, Math.min(100, Math.round(score)));
   return { score, notes, domains, riskFactors, trustFactors, knownProfile, category };
+}
+
+function resolveAppProfile(packageName, appLabel, category) {
+  if (KNOWN_APP_PROFILES[packageName]) {
+    return KNOWN_APP_PROFILES[packageName];
+  }
+  const haystack = `${packageName || ""} ${appLabel || ""} ${category || ""}`.toLowerCase();
+  for (const profile of CATEGORY_PROFILES) {
+    if (profile.match.some(word => haystack.includes(word))) {
+      return {
+        name: appLabel || packageName,
+        category: profile.category,
+        trust: profile.trust,
+        cap: profile.cap,
+        notes: profile.notes
+      };
+    }
+  }
+  return null;
 }
 
 function isSensitiveCategory(packageName, appLabel, category) {
@@ -208,6 +280,13 @@ function recommendationFor(score, reputation) {
     return "Categoria sensibile: non emerge malware evidente dal controllo online base, ma usa solo canale ufficiale e limita dati/permessi.";
   }
   return "Evita o cerca alternativa piu nota finche reputazione e permessi non sono chiariti.";
+}
+
+function decisionFor(score, reputation) {
+  if (score < 35) return "consigliata";
+  if (score < 68) return "attenzione";
+  if (reputation.knownProfile) return "attenzione alta";
+  return "evita";
 }
 
 function summaryFor(input, score, reputation) {
@@ -278,6 +357,11 @@ async function handleOnlineCheck(req, res) {
     score,
     summary: summaryFor(input, score, reputation),
     recommendation: recommendationFor(score, reputation),
+    finalDecision: decisionFor(score, reputation),
+    local: {
+      score: Number(input.localScore || 0),
+      verdict: String(input.localVerdict || "")
+    },
     riskFactors: reputation.riskFactors,
     trustFactors: reputation.trustFactors,
     category: reputation.knownProfile ? reputation.knownProfile.category : reputation.category,
