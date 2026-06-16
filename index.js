@@ -50,6 +50,16 @@ const CATEGORY_PROFILES = [
     ]
   },
   {
+    category: "banca/poste/servizi ufficiali",
+    match: ["poste", "postepay", "bancoposta", "posteid", "spid", "io.italia", "inps", "agenziaentrate", "banca", "bank", "paypal", "nexi", "satispay"],
+    cap: 64,
+    trust: "categoria riconosciuta: banca/poste/servizi ufficiali",
+    notes: [
+      "App banca/poste/servizi ufficiali: pagamenti, identita, notifiche e fotocamera per documenti/QR possono essere coerenti.",
+      "Il rischio va alzato soprattutto con accessibilita, SMS, installazione esterna, overlay o segnali malware reali."
+    ]
+  },
+  {
     category: "scommesse",
     match: ["scommess", "betting", "casino", "eurobet", "goldbet", "snai", "sisal", "bet365", "poker", "bingo"],
     cap: 78,
