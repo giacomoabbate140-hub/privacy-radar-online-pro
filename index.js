@@ -66,6 +66,56 @@ const KNOWN_APP_PROFILES = {
       "Valutare origine ufficiale, firma e permessi extra."
     ]
   },
+  "com.paypal.android.p2pmobile": {
+    name: "PayPal",
+    category: "pagamenti",
+    trust: "app pagamenti riconoscibile",
+    cap: 62,
+    notes: [
+      "App pagamenti riconoscibile: rete, identita e notifiche sono coerenti con la funzione.",
+      "Il rischio sale se l'origine non e ufficiale o se compaiono accessibilita/overlay non spiegati."
+    ]
+  },
+  "com.satispay.customer": {
+    name: "Satispay",
+    category: "pagamenti",
+    trust: "app pagamenti riconoscibile",
+    cap: 60,
+    notes: [
+      "App pagamenti riconoscibile: pagamenti e identita sono coerenti.",
+      "Verifica origine installazione e limita permessi non necessari."
+    ]
+  },
+  "com.whatsapp": {
+    name: "WhatsApp",
+    category: "messaggistica/social",
+    trust: "app messaggistica nota",
+    cap: 64,
+    notes: [
+      "App messaggistica nota: contatti, media, microfono e notifiche possono essere coerenti.",
+      "Il rischio principale e privacy/dati condivisi, non per forza malware."
+    ]
+  },
+  "com.instagram.android": {
+    name: "Instagram",
+    category: "social",
+    trust: "app social nota",
+    cap: 66,
+    notes: [
+      "App social nota: camera, media, rete e tracker possono essere coerenti con il modello pubblicitario.",
+      "Valuta privacy, dati condivisi e permessi attivi."
+    ]
+  },
+  "com.facebook.katana": {
+    name: "Facebook",
+    category: "social",
+    trust: "app social nota",
+    cap: 66,
+    notes: [
+      "App social nota: molti SDK e permessi possono essere coerenti con funzioni social/pubblicitarie.",
+      "Il giudizio deve separare privacy commerciale da pericolo tecnico."
+    ]
+  },
   "com.nexse.mobile.bos.eurobet": {
     name: "Eurobet",
     category: "scommesse",
@@ -101,12 +151,52 @@ const CATEGORY_PROFILES = [
   },
   {
     category: "banca/poste/servizi ufficiali",
-    match: ["poste", "postepay", "bancoposta", "posteid", "spid", "io.italia", "inps", "agenziaentrate", "banca", "bank", "paypal", "nexi", "satispay"],
+    match: ["poste", "postepay", "bancoposta", "posteid", "spid", "io.italia", "pagopa", "inps", "agenziaentrate", "banca", "bank", "paypal", "nexi", "satispay", "revolut", "wise", "buddybank", "unicredit", "intesa", "bnl", "fineco", "hype"],
     cap: 64,
     trust: "categoria riconosciuta: banca/poste/servizi ufficiali",
     notes: [
       "App banca/poste/servizi ufficiali: pagamenti, identita, notifiche e fotocamera per documenti/QR possono essere coerenti.",
       "Il rischio va alzato soprattutto con accessibilita, SMS, installazione esterna, overlay o segnali malware reali."
+    ]
+  },
+  {
+    category: "social/messaggistica",
+    match: ["whatsapp", "telegram", "signal", "instagram", "facebook", "tiktok", "snapchat", "twitter", "x.com", "discord", "messenger", "dating", "tinder", "bumble"],
+    cap: 66,
+    trust: "categoria riconosciuta: social/messaggistica",
+    notes: [
+      "App social/messaggistica: contatti, media, microfono e notifiche possono essere coerenti.",
+      "Il rischio va letto come privacy/dati condivisi, non automaticamente come malware."
+    ]
+  },
+  {
+    category: "giochi",
+    match: ["game", "games", "gioco", "giochi", "unity", "roblox", "minecraft", "supercell", "clash", "fortnite", "pubg", "casino game"],
+    cap: 62,
+    trust: "categoria riconosciuta: giochi",
+    notes: [
+      "App gioco: SDK pubblicitari, analytics e acquisti in-app sono frequenti.",
+      "Il rischio cresce con accessibilita, SMS, installazione esterna o domini sospetti."
+    ]
+  },
+  {
+    category: "foto/video/editor",
+    match: ["photo", "foto", "camera", "video", "editor", "gallery", "galleria", "snapseed", "capcut", "canva"],
+    cap: 60,
+    trust: "categoria riconosciuta: foto/video/editor",
+    notes: [
+      "App foto/video: camera, media e rete possono essere coerenti.",
+      "Controlla se carica contenuti su cloud o condivide dati con terze parti."
+    ]
+  },
+  {
+    category: "trasporti/viaggi",
+    match: ["train", "treno", "trenitalia", "italo", "ryanair", "booking", "hotel", "taxi", "uber", "moovit", "maps", "mappe"],
+    cap: 60,
+    trust: "categoria riconosciuta: trasporti/viaggi",
+    notes: [
+      "App trasporti/viaggi: posizione, notifiche e pagamenti sono spesso coerenti.",
+      "Il rischio sale con origine non ufficiale o permessi fuori contesto."
     ]
   },
   {
@@ -220,6 +310,7 @@ function localReputation(input) {
   const appLabel = String(input.appLabel || "");
   const category = String(input.category || input.localCategory || "");
   const signature = String(input.signature || "");
+  const installSource = String(input.installSource || "");
   const knownProfile = resolveAppProfile(packageName, appLabel, category);
   const suspiciousBrandUse = isSuspiciousBrandUse(packageName, appLabel, domains);
 
@@ -238,6 +329,17 @@ function localReputation(input) {
   } else if (/installata|apk/i.test(String(input.source || ""))) {
     notes.push("Firma non ricevuta o non leggibile: verifica online non completa.");
     riskFactors.push("firma non verificata");
+  }
+  if (/google play store/i.test(installSource)) {
+    trustFactors.push("origine Google Play");
+  } else if (/apk locale|manual/i.test(installSource)) {
+    score += knownProfile ? 4 : 10;
+    riskFactors.push("APK locale/manuale");
+    notes.push("Origine APK locale/manuale: controlla che provenga dal canale ufficiale.");
+  } else if (/origine:/i.test(installSource) && !/installatore Android di sistema|non disponibile/i.test(installSource)) {
+    score += knownProfile ? 3 : 7;
+    riskFactors.push("origine installazione da verificare");
+    notes.push("Origine installazione non Play Store: verifica store, sviluppatore e firma.");
   }
   if (knownProfile) {
     score = Math.min(score, suspiciousBrandUse ? Math.max(knownProfile.cap, 86) : knownProfile.cap);
@@ -282,7 +384,7 @@ function localReputation(input) {
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
-  return { score, notes, domains, riskFactors, trustFactors, knownProfile, category, signature };
+  return { score, notes, domains, riskFactors, trustFactors, knownProfile, category, signature, installSource };
 }
 
 function signatureStatusFor(reputation) {
@@ -293,6 +395,20 @@ function signatureStatusFor(reputation) {
     return "impronta SHA-256 ricevuta; utile per confronti futuri e rilevare cambi anomali.";
   }
   return "non disponibile: controllo firma online incompleto.";
+}
+
+function installSourceStatusFor(reputation) {
+  const source = String(reputation.installSource || "");
+  if (/google play store/i.test(source)) {
+    return "origine Play Store: fattore positivo, resta da verificare firma/reputazione.";
+  }
+  if (/apk locale|manual/i.test(source)) {
+    return "APK locale/manuale: richiede controllo piu prudente.";
+  }
+  if (/origine:/i.test(source)) {
+    return source.replace(/^Origine:\s*/i, "origine rilevata: ");
+  }
+  return "origine non disponibile.";
 }
 
 function isSuspiciousBrandUse(packageName, appLabel, domains) {
@@ -478,6 +594,7 @@ async function handleOnlineCheck(req, res) {
     riskFactors: reputation.riskFactors,
     trustFactors: reputation.trustFactors,
     signatureStatus: signatureStatusFor(reputation),
+    installSourceStatus: installSourceStatusFor(reputation),
     category: reputation.knownProfile ? reputation.knownProfile.category : reputation.category,
     confidence: vtResults.length > 0 || SAFE_BROWSING_API_KEY ? "alta" : "media",
     notes: notes.length ? notes.join(" ") : "Nessun segnale online forte.",
