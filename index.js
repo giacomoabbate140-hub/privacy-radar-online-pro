@@ -66,6 +66,26 @@ const KNOWN_APP_PROFILES = {
       "Valutare origine ufficiale, firma e permessi extra."
     ]
   },
+  "posteitaliane.posteapp.appposteid": {
+    name: "PosteID",
+    category: "identita digitale/SPID",
+    trust: "app PosteID riconoscibile",
+    cap: 62,
+    notes: [
+      "App PosteID riconoscibile: SPID, QR, documenti e biometria possono essere coerenti con la funzione.",
+      "Per app identita digitale il rischio va letto come sensibilita dei dati, non come pericolo tecnico automatico."
+    ]
+  },
+  "it.ipzs.cieid": {
+    name: "CieID",
+    category: "identita digitale/CIE",
+    trust: "app CieID riconoscibile",
+    cap: 58,
+    notes: [
+      "App CieID riconoscibile: NFC, QR, documenti e biometria possono essere coerenti con l'accesso ai servizi online.",
+      "Categoria sensibile ma non rischio alto senza segnali critici, origine anomala o firma cambiata."
+    ]
+  },
   "com.paypal.android.p2pmobile": {
     name: "PayPal",
     category: "pagamenti",
@@ -151,12 +171,22 @@ const CATEGORY_PROFILES = [
   },
   {
     category: "banca/poste/servizi ufficiali",
-    match: ["poste", "postepay", "bancoposta", "posteid", "spid", "io.italia", "pagopa", "inps", "agenziaentrate", "banca", "bank", "paypal", "nexi", "satispay", "revolut", "wise", "buddybank", "unicredit", "intesa", "bnl", "fineco", "hype"],
+    match: ["poste", "postepay", "bancoposta", "io.italia", "pagopa", "inps", "agenziaentrate", "banca", "bank", "paypal", "nexi", "satispay", "revolut", "wise", "buddybank", "unicredit", "intesa", "bnl", "fineco", "hype"],
     cap: 64,
     trust: "categoria riconosciuta: banca/poste/servizi ufficiali",
     notes: [
       "App banca/poste/servizi ufficiali: pagamenti, identita, notifiche e fotocamera per documenti/QR possono essere coerenti.",
       "Il rischio va alzato soprattutto con accessibilita, SMS, installazione esterna, overlay o segnali malware reali."
+    ]
+  },
+  {
+    category: "identita digitale/SPID/CIE",
+    match: ["posteid", "spid", "cieid", "cartaidentita", "identita digitale", "ipzs"],
+    cap: 62,
+    trust: "categoria riconosciuta: identita digitale",
+    notes: [
+      "App identita digitale: documenti, QR, NFC, biometria e notifiche possono essere coerenti.",
+      "Il rischio diventa alto solo con origine non ufficiale, firma cambiata o permessi tecnici fuori contesto."
     ]
   },
   {
