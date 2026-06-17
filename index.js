@@ -54,6 +54,17 @@ const KNOWN_APP_PROFILES = {
       "Non valutare solo il numero di permessi: controlla origine, firma e segnali tecnici forti."
     ]
   },
+  "com.posteitaliane.spim": {
+    name: "Poste Italiane",
+    category: "banca/poste/servizi ufficiali",
+    trust: "app Poste riconoscibile",
+    level: VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE,
+    cap: 34,
+    notes: [
+      "App Poste riconosciuta: identita, pagamenti, notifiche e fotocamera possono essere coerenti con servizi ufficiali.",
+      "Rischio tecnico basso se origine Play Store, package e firma sono coerenti; resta categoria privacy sensibile."
+    ]
+  },
   "posteitaliane.posteapp.apppostepay": {
     name: "Postepay",
     category: "banca/poste/servizi ufficiali",
@@ -118,17 +129,30 @@ const KNOWN_APP_PROFILES = {
     name: "WhatsApp",
     category: "messaggistica/social",
     trust: "app messaggistica nota",
-    cap: 64,
+    level: VERIFIED_RISK_LEVELS.KNOWN_PRIVACY_HEAVY,
+    cap: 48,
     notes: [
       "App messaggistica nota: contatti, media, microfono e notifiche possono essere coerenti.",
       "Il rischio principale e privacy/dati condivisi, non per forza malware."
+    ]
+  },
+  "com.whatsapp.w4b": {
+    name: "WhatsApp Business",
+    category: "messaggistica/social",
+    trust: "app messaggistica business nota",
+    level: VERIFIED_RISK_LEVELS.KNOWN_PRIVACY_HEAVY,
+    cap: 48,
+    notes: [
+      "App messaggistica business nota: contatti, media, microfono, camera e notifiche possono essere coerenti.",
+      "Il rischio principale e privacy/dati condivisi, non malware automatico se origine e firma sono coerenti."
     ]
   },
   "com.instagram.android": {
     name: "Instagram",
     category: "social",
     trust: "app social nota",
-    cap: 66,
+    level: VERIFIED_RISK_LEVELS.KNOWN_PRIVACY_HEAVY,
+    cap: 48,
     notes: [
       "App social nota: camera, media, rete e tracker possono essere coerenti con il modello pubblicitario.",
       "Valuta privacy, dati condivisi e permessi attivi."
@@ -138,7 +162,8 @@ const KNOWN_APP_PROFILES = {
     name: "Facebook",
     category: "social",
     trust: "app social nota",
-    cap: 66,
+    level: VERIFIED_RISK_LEVELS.KNOWN_PRIVACY_HEAVY,
+    cap: 48,
     notes: [
       "App social nota: molti SDK e permessi possono essere coerenti con funzioni social/pubblicitarie.",
       "Il giudizio deve separare privacy commerciale da pericolo tecnico."
@@ -364,7 +389,9 @@ function localReputation(input) {
   const installSource = String(input.installSource || "");
   const knownProfile = resolveAppProfile(packageName, appLabel, category);
   const suspiciousBrandUse = isSuspiciousBrandUse(packageName, appLabel, domains);
+  const suspiciousSocialClone = isSuspiciousSocialClone(packageName, appLabel);
   const verifiedContext = hasVerifiedContext(input, knownProfile, suspiciousBrandUse);
+  const trustedInstalledContext = hasTrustedInstalledContext(input);
 
   let score = Number(input.localScore || 0);
   const notes = [];
@@ -402,6 +429,11 @@ function localReputation(input) {
     } else {
       trustFactors.push(knownProfile.trust);
     }
+  }
+  if (suspiciousSocialClone) {
+    score = Math.max(score, 82);
+    notes.push("Marchio social/messaggistica usato da package non ufficiale: possibile clone o mod da evitare.");
+    riskFactors.push("possibile clone social");
   }
   if (isSensitiveCategory(packageName, appLabel, category)) {
     if (verifiedContext) {
@@ -441,6 +473,10 @@ function localReputation(input) {
     if (verifiedContext && !hasStrongProtectSignals(protectSignals) && !hasWeakDomains(domains)) {
       score = Math.min(score, verifiedScoreCap(knownProfile));
     }
+  } else if (trustedInstalledContext && !suspiciousSocialClone && !hasStrongProtectSignals(protectSignals) && !hasWeakDomains(domains)) {
+    score = Math.min(score, 62);
+    notes.push("Origine Play Store e firma ricevuta: rischio alto limitato in assenza di segnali tecnici forti.");
+    trustFactors.push("origine/firma coerenti");
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
@@ -449,6 +485,14 @@ function localReputation(input) {
 
 function hasVerifiedContext(input, knownProfile, suspiciousBrandUse) {
   if (!knownProfile || suspiciousBrandUse) return false;
+  const signature = String(input.signature || "");
+  const installSource = String(input.installSource || "");
+  const hasSignature = /SHA-256\s+[A-F0-9]{32,}/i.test(signature);
+  const playStore = /google play store/i.test(installSource);
+  return hasSignature && playStore;
+}
+
+function hasTrustedInstalledContext(input) {
   const signature = String(input.signature || "");
   const installSource = String(input.installSource || "");
   const hasSignature = /SHA-256\s+[A-F0-9]{32,}/i.test(signature);
@@ -505,10 +549,27 @@ function isSuspiciousBrandUse(packageName, appLabel, domains) {
   const haystack = `${packageName || ""} ${appLabel || ""}`.toLowerCase();
   const brandLike = /poste|postepay|bancoposta|spid|inps|agenziaentrate|paypal|nexi|satispay/.test(haystack);
   if (!brandLike) return false;
-  const officialPackage = /^(posteitaliane\.|it\.poste|it\.posteitaliane|it\.ipzs|it\.pagopa|it\.inps|it\.agenziaentrate|com\.paypal|it\.nexi|com\.satispay)/.test(packageName || "");
+  const officialPackage = /^(posteitaliane\.|it\.poste|it\.posteitaliane|com\.posteitaliane|it\.ipzs|it\.pagopa|it\.inps|it\.agenziaentrate|com\.paypal|it\.nexi|com\.satispay)/.test(packageName || "");
   const weakDomain = domains.some(d => d.endsWith(".top") || d.endsWith(".xyz") || d.endsWith(".ru"));
   const lureWords = /bonus|gratis|free|apk|mod|credito|premio|gift|win/.test(haystack);
   return !officialPackage || weakDomain || lureWords;
+}
+
+function isSuspiciousSocialClone(packageName, appLabel) {
+  const pkg = String(packageName || "").toLowerCase();
+  const haystack = `${packageName || ""} ${appLabel || ""}`.toLowerCase();
+  const brandLike = /whatsapp|facebook|instagram|telegram|signal/.test(haystack);
+  if (!brandLike) return false;
+  const official = new Set([
+    "com.whatsapp",
+    "com.whatsapp.w4b",
+    "com.facebook.katana",
+    "com.instagram.android",
+    "org.telegram.messenger",
+    "org.thoughtcrime.securesms"
+  ]);
+  const modWords = /gbwhatsapp|gb whatsapp|fmwhatsapp|fm whatsapp|yowhatsapp|yo whatsapp|whatsapp plus|wa plus|mod|clone|unofficial/.test(haystack);
+  return !official.has(pkg) && (brandLike || modWords);
 }
 
 function resolveAppProfile(packageName, appLabel, category) {
