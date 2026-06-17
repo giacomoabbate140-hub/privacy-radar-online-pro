@@ -403,7 +403,7 @@ function localReputation(input) {
     notes.push("Package Google/Android attendibile: rischio locale limitato.");
     trustFactors.push("package di piattaforma attendibile");
   }
-  if (/SHA-256\s+[A-F0-9]{32,}/i.test(signature)) {
+  if (hasSignatureHash(signature)) {
     trustFactors.push("firma/hash tecnico ricevuto");
   } else if (/installata|apk/i.test(String(input.source || ""))) {
     notes.push("Firma non ricevuta o non leggibile: verifica online non completa.");
@@ -487,7 +487,7 @@ function hasVerifiedContext(input, knownProfile, suspiciousBrandUse) {
   if (!knownProfile || suspiciousBrandUse) return false;
   const signature = String(input.signature || "");
   const installSource = String(input.installSource || "");
-  const hasSignature = /SHA-256\s+[A-F0-9]{32,}/i.test(signature);
+  const hasSignature = hasSignatureHash(signature);
   const playStore = /google play store/i.test(installSource);
   return hasSignature && playStore;
 }
@@ -495,7 +495,7 @@ function hasVerifiedContext(input, knownProfile, suspiciousBrandUse) {
 function hasTrustedInstalledContext(input) {
   const signature = String(input.signature || "");
   const installSource = String(input.installSource || "");
-  const hasSignature = /SHA-256\s+[A-F0-9]{32,}/i.test(signature);
+  const hasSignature = hasSignatureHash(signature);
   const playStore = /google play store/i.test(installSource);
   return hasSignature && playStore;
 }
@@ -513,6 +513,10 @@ function verifiedScoreCap(profile) {
   }
 }
 
+function hasSignatureHash(signature) {
+  return /SHA-256\s*:?\s*[A-F0-9]{32,}/i.test(String(signature || ""));
+}
+
 function hasWeakDomains(domains) {
   return domains.some(d => d.endsWith(".top") || d.endsWith(".xyz") || d.endsWith(".ru"));
 }
@@ -522,7 +526,7 @@ function hasStrongProtectSignals(protectSignals) {
 }
 
 function signatureStatusFor(reputation) {
-  if (/SHA-256\s+[A-F0-9]{32,}/i.test(reputation.signature || "")) {
+  if (hasSignatureHash(reputation.signature)) {
     if (reputation.knownProfile) {
       return "impronta SHA-256 ricevuta; app riconosciuta per package/categoria, firma ufficiale da confrontare se disponibile.";
     }
