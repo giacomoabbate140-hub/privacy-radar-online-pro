@@ -16,6 +16,56 @@ const TRUSTED_PACKAGES = new Set([
 ]);
 
 const KNOWN_APP_PROFILES = {
+  "com.easypark.android": {
+    name: "EasyPark",
+    category: "parcheggio/mobilita",
+    trust: "app parcheggio nota/riconoscibile",
+    cap: 56,
+    notes: [
+      "App riconosciuta come parcheggio/mobilita: posizione, rete e pagamenti sono coerenti con la funzione.",
+      "Il rischio va alzato solo con accessibilita, SMS, installazione esterna o segnali tecnici forti."
+    ]
+  },
+  "it.telepass.pay": {
+    name: "Telepass",
+    category: "parcheggio/mobilita",
+    trust: "app mobilita/pagamenti nota",
+    cap: 60,
+    notes: [
+      "App mobilita/pagamenti riconoscibile: posizione e pagamenti possono essere coerenti.",
+      "Verifica comunque sviluppatore ufficiale e permessi non indispensabili."
+    ]
+  },
+  "it.posteitaliane.posteapp.appbpol": {
+    name: "BancoPosta",
+    category: "banca/poste/servizi ufficiali",
+    trust: "app Poste riconoscibile",
+    cap: 62,
+    notes: [
+      "App Poste/banca riconoscibile: identita, notifiche e fotocamera possono essere coerenti.",
+      "Non valutare solo il numero di permessi: controlla origine, firma e segnali tecnici forti."
+    ]
+  },
+  "posteitaliane.posteapp.apppostepay": {
+    name: "Postepay",
+    category: "banca/poste/servizi ufficiali",
+    trust: "app Postepay riconoscibile",
+    cap: 62,
+    notes: [
+      "App Postepay riconoscibile: pagamenti e identita sono coerenti con la funzione.",
+      "Il rischio diventa alto con package/firma non coerenti, APK esterni o permessi fuori contesto."
+    ]
+  },
+  "it.pagopa.io.app": {
+    name: "IO",
+    category: "banca/poste/servizi ufficiali",
+    trust: "app pubblica riconoscibile",
+    cap: 58,
+    notes: [
+      "App IO riconoscibile: notifiche, identita e servizi pubblici sono coerenti.",
+      "Valutare origine ufficiale, firma e permessi extra."
+    ]
+  },
   "com.nexse.mobile.bos.eurobet": {
     name: "Eurobet",
     category: "scommesse",
@@ -169,6 +219,7 @@ function localReputation(input) {
   const packageName = String(input.packageName || "");
   const appLabel = String(input.appLabel || "");
   const category = String(input.category || input.localCategory || "");
+  const signature = String(input.signature || "");
   const knownProfile = resolveAppProfile(packageName, appLabel, category);
   const suspiciousBrandUse = isSuspiciousBrandUse(packageName, appLabel, domains);
 
@@ -181,6 +232,12 @@ function localReputation(input) {
     score = Math.min(score, 25);
     notes.push("Package Google/Android attendibile: rischio locale limitato.");
     trustFactors.push("package di piattaforma attendibile");
+  }
+  if (/SHA-256\s+[A-F0-9]{32,}/i.test(signature)) {
+    trustFactors.push("firma/hash tecnico ricevuto");
+  } else if (/installata|apk/i.test(String(input.source || ""))) {
+    notes.push("Firma non ricevuta o non leggibile: verifica online non completa.");
+    riskFactors.push("firma non verificata");
   }
   if (knownProfile) {
     score = Math.min(score, suspiciousBrandUse ? Math.max(knownProfile.cap, 86) : knownProfile.cap);
@@ -225,7 +282,17 @@ function localReputation(input) {
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
-  return { score, notes, domains, riskFactors, trustFactors, knownProfile, category };
+  return { score, notes, domains, riskFactors, trustFactors, knownProfile, category, signature };
+}
+
+function signatureStatusFor(reputation) {
+  if (/SHA-256\s+[A-F0-9]{32,}/i.test(reputation.signature || "")) {
+    if (reputation.knownProfile) {
+      return "impronta SHA-256 ricevuta; app riconosciuta per package/categoria, firma ufficiale da confrontare se disponibile.";
+    }
+    return "impronta SHA-256 ricevuta; utile per confronti futuri e rilevare cambi anomali.";
+  }
+  return "non disponibile: controllo firma online incompleto.";
 }
 
 function isSuspiciousBrandUse(packageName, appLabel, domains) {
@@ -410,6 +477,7 @@ async function handleOnlineCheck(req, res) {
     },
     riskFactors: reputation.riskFactors,
     trustFactors: reputation.trustFactors,
+    signatureStatus: signatureStatusFor(reputation),
     category: reputation.knownProfile ? reputation.knownProfile.category : reputation.category,
     confidence: vtResults.length > 0 || SAFE_BROWSING_API_KEY ? "alta" : "media",
     notes: notes.length ? notes.join(" ") : "Nessun segnale online forte.",
