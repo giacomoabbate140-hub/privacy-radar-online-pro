@@ -15,6 +15,14 @@ const TRUSTED_PACKAGES = new Set([
   "com.android.packageinstaller"
 ]);
 
+const VERIFIED_RISK_LEVELS = {
+  VERIFIED_SAFE: "verified_safe",
+  VERIFIED_SENSITIVE: "verified_sensitive",
+  KNOWN_PRIVACY_HEAVY: "known_privacy_heavy",
+  UNKNOWN: "unknown",
+  SUSPICIOUS_CLONE: "suspicious_clone"
+};
+
 const KNOWN_APP_PROFILES = {
   "com.easypark.android": {
     name: "EasyPark",
@@ -140,10 +148,22 @@ const KNOWN_APP_PROFILES = {
     name: "Eurobet",
     category: "scommesse",
     trust: "app nota/riconoscibile",
-    cap: 66,
+    level: VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE,
+    cap: 34,
     notes: [
-      "App riconosciuta come scommesse: categoria sensibile per privacy, pagamenti, identita e posizione.",
-      "Non e marcata come rischio alto solo per categoria: il rischio cresce con permessi fuori contesto o segnali tecnici forti."
+      "App scommesse riconosciuta: categoria sensibile per privacy, pagamenti, identita e posizione.",
+      "Rischio tecnico basso se origine, firma e segnali sono coerenti; resta una categoria da usare con attenzione."
+    ]
+  },
+  "it.goldbet.mobile": {
+    name: "Goldbet",
+    category: "scommesse",
+    trust: "app scommesse riconoscibile",
+    level: VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE,
+    cap: 34,
+    notes: [
+      "App scommesse riconoscibile: categoria sensibile per privacy, pagamenti, identita e posizione.",
+      "Rischio tecnico basso se origine, firma e segnali sono coerenti; resta una categoria da usare con attenzione."
     ]
   },
   "host.exp.exponent": {
@@ -232,11 +252,12 @@ const CATEGORY_PROFILES = [
   {
     category: "scommesse",
     match: ["scommess", "betting", "casino", "eurobet", "goldbet", "snai", "sisal", "bet365", "poker", "bingo"],
-    cap: 67,
+    level: VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE,
+    cap: 34,
     trust: "categoria riconosciuta: scommesse/casino",
     notes: [
       "App scommesse/casino: categoria sensibile per pagamenti, identita, posizione e uso account.",
-      "Non va marcata come malware senza segnali forti: va distinta la categoria sensibile dalla pericolosita tecnica."
+      "Se installata da Play Store e senza segnali critici, il rischio tecnico resta basso; la sensibilita riguarda privacy e uso responsabile."
     ]
   },
   {
@@ -343,6 +364,7 @@ function localReputation(input) {
   const installSource = String(input.installSource || "");
   const knownProfile = resolveAppProfile(packageName, appLabel, category);
   const suspiciousBrandUse = isSuspiciousBrandUse(packageName, appLabel, domains);
+  const verifiedContext = hasVerifiedContext(input, knownProfile, suspiciousBrandUse);
 
   let score = Number(input.localScore || 0);
   const notes = [];
@@ -382,11 +404,16 @@ function localReputation(input) {
     }
   }
   if (isSensitiveCategory(packageName, appLabel, category)) {
-    score += 6;
-    riskFactors.push("categoria sensibile");
-    notes.push("Categoria sensibile: controlla licenza, sviluppatore, pagamenti e dati richiesti.");
+    if (verifiedContext) {
+      trustFactors.push("categoria sensibile ma contesto verificato");
+      notes.push("Categoria sensibile: non aumenta il rischio tecnico se origine, firma e segnali sono coerenti.");
+    } else {
+      score += 6;
+      riskFactors.push("categoria sensibile");
+      notes.push("Categoria sensibile: controlla licenza, sviluppatore, pagamenti e dati richiesti.");
+    }
   }
-  if (domains.some(d => d.endsWith(".top") || d.endsWith(".xyz") || d.endsWith(".ru"))) {
+  if (hasWeakDomains(domains)) {
     score += 8;
     notes.push("Dominio con TLD da verificare.");
     riskFactors.push("domini con TLD deboli");
@@ -404,17 +431,50 @@ function localReputation(input) {
     riskFactors.push("SDK analytics/tracker presenti");
   }
   if (protectSignals.length > 0) {
-    const strongProtect = protectSignals.some(signal => /sms|admin|accessibil|overlay|runtime|exec/i.test(String(signal)));
+    const strongProtect = hasStrongProtectSignals(protectSignals);
     score += strongProtect ? 14 : 6;
     notes.push(strongProtect ? "Segnali tecnici forti da verificare." : "Segnali tecnici locali presenti, da pesare con contesto e categoria.");
     riskFactors.push(strongProtect ? "segnali tecnici forti" : "segnali tecnici deboli");
   }
   if (knownProfile) {
     score = Math.min(score, suspiciousBrandUse ? 92 : knownProfile.cap);
+    if (verifiedContext && !hasStrongProtectSignals(protectSignals) && !hasWeakDomains(domains)) {
+      score = Math.min(score, verifiedScoreCap(knownProfile));
+    }
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
   return { score, notes, domains, riskFactors, trustFactors, knownProfile, category, signature, installSource };
+}
+
+function hasVerifiedContext(input, knownProfile, suspiciousBrandUse) {
+  if (!knownProfile || suspiciousBrandUse) return false;
+  const signature = String(input.signature || "");
+  const installSource = String(input.installSource || "");
+  const hasSignature = /SHA-256\s+[A-F0-9]{32,}/i.test(signature);
+  const playStore = /google play store/i.test(installSource);
+  return hasSignature && playStore;
+}
+
+function verifiedScoreCap(profile) {
+  switch (profile.level) {
+    case VERIFIED_RISK_LEVELS.VERIFIED_SAFE:
+      return 28;
+    case VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE:
+      return 34;
+    case VERIFIED_RISK_LEVELS.KNOWN_PRIVACY_HEAVY:
+      return 48;
+    default:
+      return Math.min(profile.cap || 62, 50);
+  }
+}
+
+function hasWeakDomains(domains) {
+  return domains.some(d => d.endsWith(".top") || d.endsWith(".xyz") || d.endsWith(".ru"));
+}
+
+function hasStrongProtectSignals(protectSignals) {
+  return protectSignals.some(signal => /sms|admin|accessibil|overlay|runtime|exec/i.test(String(signal)));
 }
 
 function signatureStatusFor(reputation) {
@@ -529,6 +589,9 @@ function verdictFor(score) {
 }
 
 function recommendationFor(score, reputation) {
+  if (reputation.knownProfile?.level === VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE && score < 35) {
+    return "App riconosciuta: rischio tecnico basso. Resta categoria sensibile, quindi usa solo canale ufficiale e limita permessi non indispensabili.";
+  }
   if (score < 35) {
     return "OK con controllo finale di sviluppatore, recensioni recenti e permessi.";
   }
@@ -542,6 +605,7 @@ function recommendationFor(score, reputation) {
 }
 
 function decisionFor(score, reputation) {
+  if (reputation.knownProfile?.level === VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE && score < 35) return "consigliata con attenzione privacy";
   if (score < 35) return "consigliata";
   if (score < 70) return "attenzione";
   if (reputation.knownProfile) return "attenzione alta";
@@ -551,6 +615,9 @@ function decisionFor(score, reputation) {
 function summaryFor(input, score, reputation) {
   const label = String(input.appLabel || input.packageName || "App");
   if (reputation.knownProfile) {
+    if (reputation.knownProfile.level === VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE && score < 35) {
+      return `${label}: app riconosciuta come ${reputation.knownProfile.category}. Rischio tecnico basso; categoria sensibile per privacy/pagamenti.`;
+    }
     return `${label}: app riconosciuta come ${reputation.knownProfile.category}. Livello ${verdictFor(score)} per categoria e permessi, non per prova automatica di malware.`;
   }
   if (reputation.trustFactors.length > 0) {
