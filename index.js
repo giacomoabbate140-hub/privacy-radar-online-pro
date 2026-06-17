@@ -507,7 +507,7 @@ function verifiedScoreCap(profile) {
     case VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE:
       return 34;
     case VERIFIED_RISK_LEVELS.KNOWN_PRIVACY_HEAVY:
-      return 48;
+      return 32;
     default:
       return Math.min(profile.cap || 62, 50);
   }
@@ -654,6 +654,9 @@ function verdictFor(score) {
 }
 
 function recommendationFor(score, reputation) {
+  if (reputation.knownProfile?.level === VERIFIED_RISK_LEVELS.KNOWN_PRIVACY_HEAVY && score < 35) {
+    return "App ufficiale/nota: rischio tecnico basso. Resta attenzione privacy per contatti, media, notifiche e dati condivisi.";
+  }
   if (reputation.knownProfile?.level === VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE && score < 35) {
     return "App riconosciuta: rischio tecnico basso. Resta categoria sensibile, quindi usa solo canale ufficiale e limita permessi non indispensabili.";
   }
@@ -670,6 +673,7 @@ function recommendationFor(score, reputation) {
 }
 
 function decisionFor(score, reputation) {
+  if (reputation.knownProfile?.level === VERIFIED_RISK_LEVELS.KNOWN_PRIVACY_HEAVY && score < 35) return "consigliata con attenzione privacy";
   if (reputation.knownProfile?.level === VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE && score < 35) return "consigliata con attenzione privacy";
   if (score < 35) return "consigliata";
   if (score < 70) return "attenzione";
@@ -680,6 +684,9 @@ function decisionFor(score, reputation) {
 function summaryFor(input, score, reputation) {
   const label = String(input.appLabel || input.packageName || "App");
   if (reputation.knownProfile) {
+    if (reputation.knownProfile.level === VERIFIED_RISK_LEVELS.KNOWN_PRIVACY_HEAVY && score < 35) {
+      return `${label}: app ufficiale/nota riconosciuta come ${reputation.knownProfile.category}. Rischio tecnico basso; attenzione privacy per dati e permessi.`;
+    }
     if (reputation.knownProfile.level === VERIFIED_RISK_LEVELS.VERIFIED_SENSITIVE && score < 35) {
       return `${label}: app riconosciuta come ${reputation.knownProfile.category}. Rischio tecnico basso; categoria sensibile per privacy/pagamenti.`;
     }
