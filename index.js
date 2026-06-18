@@ -24,6 +24,50 @@ const VERIFIED_RISK_LEVELS = {
 };
 
 const KNOWN_APP_PROFILES = {
+  "com.booking": {
+    name: "Booking.com",
+    category: "viaggi/hotel/prenotazioni",
+    trust: "app ufficiale Booking.com riconosciuta",
+    level: VERIFIED_RISK_LEVELS.VERIFIED_SAFE,
+    cap: 30,
+    notes: [
+      "Booking.com ufficiale: posizione, foto/media, notifiche, rete e pagamenti possono essere coerenti con prenotazioni e assistenza viaggio.",
+      "Rischio tecnico basso se origine Play Store, package e firma sono coerenti; resta attenzione privacy per dati personali e finanziari."
+    ]
+  },
+  "com.airbnb.android": {
+    name: "Airbnb",
+    category: "viaggi/hotel/prenotazioni",
+    trust: "app ufficiale Airbnb riconosciuta",
+    level: VERIFIED_RISK_LEVELS.VERIFIED_SAFE,
+    cap: 32,
+    notes: [
+      "Airbnb ufficiale: posizione, messaggi, notifiche e pagamenti possono essere coerenti con prenotazioni e host.",
+      "Il rischio sale solo con origine non ufficiale, firma anomala o segnali tecnici forti."
+    ]
+  },
+  "com.expedia.bookings": {
+    name: "Expedia",
+    category: "viaggi/hotel/prenotazioni",
+    trust: "app viaggi riconosciuta",
+    level: VERIFIED_RISK_LEVELS.VERIFIED_SAFE,
+    cap: 34,
+    notes: [
+      "App viaggi riconosciuta: prenotazioni, voli, hotel, notifiche e pagamenti sono coerenti.",
+      "Controllare origine ufficiale e permessi extra, non solo il numero totale di permessi."
+    ]
+  },
+  "com.agoda.mobile.consumer": {
+    name: "Agoda",
+    category: "viaggi/hotel/prenotazioni",
+    trust: "app hotel riconosciuta",
+    level: VERIFIED_RISK_LEVELS.VERIFIED_SAFE,
+    cap: 34,
+    notes: [
+      "App hotel/viaggi riconosciuta: rete, posizione, notifiche e pagamenti sono coerenti.",
+      "Rischio tecnico basso se origine e firma sono coerenti."
+    ]
+  },
   "com.easypark.android": {
     name: "EasyPark",
     category: "parcheggio/mobilita",
@@ -266,12 +310,13 @@ const CATEGORY_PROFILES = [
   },
   {
     category: "trasporti/viaggi",
-    match: ["train", "treno", "trenitalia", "italo", "ryanair", "booking", "hotel", "taxi", "uber", "moovit", "maps", "mappe"],
-    cap: 60,
+    match: ["train", "treno", "trenitalia", "italo", "ryanair", "easyjet", "booking", "hotel", "airbnb", "expedia", "agoda", "kayak", "tripadvisor", "taxi", "uber", "moovit", "maps", "mappe"],
+    level: VERIFIED_RISK_LEVELS.VERIFIED_SAFE,
+    cap: 34,
     trust: "categoria riconosciuta: trasporti/viaggi",
     notes: [
-      "App trasporti/viaggi: posizione, notifiche e pagamenti sono spesso coerenti.",
-      "Il rischio sale con origine non ufficiale o permessi fuori contesto."
+      "App trasporti/viaggi ufficiale o molto riconoscibile: posizione, notifiche, foto e pagamenti sono spesso coerenti.",
+      "Rischio tecnico basso se origine Play Store, package e firma sono coerenti; il rischio sale con APK esterni, clone o segnali tecnici forti."
     ]
   },
   {
