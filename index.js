@@ -23,6 +23,92 @@ const VERIFIED_RISK_LEVELS = {
   SUSPICIOUS_CLONE: "suspicious_clone"
 };
 
+const OFFICIAL_SAFE_PACKAGES = new Set([
+  "com.booking",
+  "com.airbnb.android",
+  "com.expedia.bookings",
+  "com.agoda.mobile.consumer",
+  "com.kayak.android",
+  "com.tripadvisor.tripadvisor",
+  "com.ubercab",
+  "com.google.android.apps.maps",
+  "com.waze",
+  "com.amazon.mShop.android.shopping",
+  "com.ebay.mobile",
+  "com.netflix.mediaclient",
+  "com.spotify.music",
+  "com.disney.disneyplus",
+  "com.google.android.youtube",
+  "com.android.chrome",
+  "com.google.android.gm",
+  "com.google.android.apps.docs",
+  "com.google.android.apps.photos",
+  "com.snapchat.android",
+  "com.discord",
+  "com.zhiliaoapp.musically",
+  "com.twitter.android",
+  "com.linkedin.android",
+  "com.ryanair.cheapflights",
+  "com.mttnow.android.easyjet",
+  "it.ntvspa.italotreno",
+  "com.skyscanner.android.main",
+  "com.moovit",
+  "com.flixbus.app",
+  "com.google.android.apps.translate",
+  "com.google.android.apps.walletnfcrel",
+  "com.google.android.calendar",
+  "com.google.android.keep",
+  "com.google.android.apps.youtube.music",
+  "com.google.android.apps.messaging",
+  "com.google.android.apps.meetings",
+  "com.facebook.katana",
+  "com.facebook.orca",
+  "com.instagram.android",
+  "com.whatsapp",
+  "com.whatsapp.w4b",
+  "org.telegram.messenger",
+  "org.thoughtcrime.securesms",
+  "com.pinterest",
+  "com.reddit.frontpage",
+  "tv.twitch.android.app",
+  "com.soundcloud.android",
+  "deezer.android.app",
+  "com.amazon.avod.thirdpartyclient",
+  "com.amazon.mp3",
+  "com.alibaba.aliexpresshd",
+  "fr.vinted",
+  "com.contextlogic.wish",
+  "com.etsy.android",
+  "com.paypal.android.p2pmobile",
+  "com.satispay.customer",
+  "it.pagopa.io.app",
+  "it.ipzs.cieid",
+  "com.posteitaliane.spim",
+  "posteitaliane.posteapp.apppostepay",
+  "it.posteitaliane.posteapp.appbpol",
+  "posteitaliane.posteapp.appposteid",
+  "com.nexse.mobile.bos.eurobet",
+  "it.goldbet.mobile",
+  "com.deliveroo.orderapp",
+  "com.glovo",
+  "com.ubercab.eats",
+  "com.mcdonalds.mobileapp",
+  "com.myfitnesspal.android",
+  "com.strava",
+  "com.duolingo",
+  "com.dropbox.android",
+  "com.microsoft.office.officehubrow",
+  "com.microsoft.teams",
+  "com.microsoft.office.outlook",
+  "com.skype.raider",
+  "com.adobe.reader",
+  "com.canva.editor",
+  "com.google.android.apps.classroom",
+  "com.google.android.apps.docs.editors.docs",
+  "com.google.android.apps.docs.editors.sheets",
+  "com.google.android.apps.docs.editors.slides"
+]);
+
 const KNOWN_APP_PROFILES = {
   "com.booking": {
     name: "Booking.com",
@@ -624,6 +710,19 @@ function isSuspiciousSocialClone(packageName, appLabel) {
 function resolveAppProfile(packageName, appLabel, category) {
   if (KNOWN_APP_PROFILES[packageName]) {
     return KNOWN_APP_PROFILES[packageName];
+  }
+  if (OFFICIAL_SAFE_PACKAGES.has(packageName)) {
+    return {
+      name: appLabel || packageName,
+      category: "app ufficiale verificata",
+      trust: "package ufficiale presente nel database Privacy Radar",
+      level: VERIFIED_RISK_LEVELS.VERIFIED_SAFE,
+      cap: 32,
+      notes: [
+        "App ufficiale riconosciuta dal database Privacy Radar: rischio tecnico basso se origine Play Store, package e firma sono coerenti.",
+        "Il controllo resta prudente: il rischio sale con APK esterni, firma non leggibile o segnali tecnici forti."
+      ]
+    };
   }
   const haystack = `${packageName || ""} ${appLabel || ""} ${category || ""}`.toLowerCase();
   if (["crypto", "bitcoin", "wallet", "token", "exchange", "defi"].some(word => haystack.includes(word))) {
